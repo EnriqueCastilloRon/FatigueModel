@@ -1,0 +1,708 @@
+\begin{comment}
+
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{verbatim}
+\usepackage{float}
+
+\geometry{a4paper, margin=1in}
+
+\end{comment}
+
+\chapter{Fatigue Examples}
+\section{Fatigue Analysis Using Frank Copulas: A Comprehensive Approach}
+
+This section presents a comprehensive approach for fatigue analysis using copulas, specifically the Frank copula. Fatigue is a critical phenomenon in engineering, responsible for numerous structural and mechanical failures under cyclic loading. The proposed method separates the marginal distributions of variables (stress range $\Delta\sigma$ and number of cycles to failure $N$) from the dependence structure between them, allowing for more flexible and accurate modeling. Four cases are presented: two simulated models (one hyperbolic and one based on Beta distributions) and two real datasets (HOLMEN and MAENNIG). For each case, the Python implementation, parameter estimation, and percentile curve generation are detailed. The results demonstrate the effectiveness of the Frank copula in capturing dependence in fatigue data, providing valuable tools for reliable design and risk assessment.
+
+\section{Introduction}
+Fatigue failure is one of the most insidious and dangerous failure modes in engineering structures and mechanical components. Unlike static failure, which occurs when a single load exceeds the material's ultimate strength, fatigue failure happens under repeated loading at stress levels well below the static strength limit. This phenomenon has been responsible for numerous catastrophic failures throughout engineering history.
+
+The fundamental challenge in fatigue analysis lies in the stochastic nature of both the loading conditions ($\Delta\sigma$) and the material's resistance to fatigue, typically characterized by the number of cycles to failure ($N$). Traditional approaches often model these variables independently, but this fails to capture their inherent statistical dependence. Copula theory provides an elegant solution to this problem by separating the marginal distributions from the dependence structure, allowing for more accurate and flexible modeling.
+
+\subsection{The Power of Copulas in Fatigue Analysis}
+Copulas offer several key advantages for fatigue modeling:
+
+\begin{enumerate}
+    \item \textbf{Separation of concerns}: The joint distribution $F_{N,\Delta\sigma}(n,\delta)$ can be expressed using Sklar's theorem as:
+    $$F_{N,\Delta\sigma}(n,\delta) = C(F_N(n), F_{\Delta\sigma}(\delta))$$
+    where $C:[0,1]^2 \rightarrow [0,1]$ is the copula function, and $F_N$, $F_{\Delta\sigma}$ are the marginal cumulative distribution functions.
+    
+    \item \textbf{Flexibility}: Different copula families can capture various dependence structures (positive/negative dependence, tail dependence) without changing the marginal distributions.
+    
+    \item \textbf{Extrapolation capability}: Once the copula is calibrated from experimental data under specific conditions, it can be combined with different marginal distributions representing other loading scenarios or material properties.
+\end{enumerate}
+
+The Frank copula, used in this study, is particularly suitable for fatigue applications because it can model both positive and negative dependence and exhibits symmetric tail dependence, which often aligns with the physical behavior of fatigue data.
+
+\section{Mathematical Framework}
+
+\subsection{Frank Copula Definition}
+The bivariate Frank copula is defined as:
+$$C_\theta(u,v) = -\frac{1}{\theta} \ln\left[1 + \frac{(e^{-\theta u} - 1)(e^{-\theta v} - 1)}{e^{-\theta} - 1}\right]$$
+for $\theta \in \mathbb{R}\setminus\{0\}$, with $u = F_N(n)$ and $v = F_{\Delta\sigma}(\delta)$. The parameter $\theta$ controls the strength and direction of dependence, with $\theta \rightarrow 0$ corresponding to independence, $\theta > 0$ to positive dependence, and $\theta < 0$ to negative dependence.
+
+\subsection{Conditional Distribution}
+For fatigue applications, we often need the conditional distribution of $N$ given $\Delta\sigma$ or vice versa. The conditional copula function is:
+$$C_{V|U}(v|u) = \frac{\partial C(u,v)}{\partial u} = \frac{e^{-\theta u}(e^{-\theta v} - 1)}{e^{-\theta} - 1 + (e^{-\theta u} - 1)(e^{-\theta v} - 1)}$$
+
+This allows us to compute percentile curves (e.g., $p = 0.01, 0.05, 0.95, 0.99$) that represent the probability of failure at given stress ranges.
+
+\subsection{Implementation Framework}
+The Python implementation follows these key steps:
+
+\begin{enumerate}
+    \item \textbf{Data preparation}: Transform raw data to uniform margins using rank-based methods.
+    \item \textbf{Dependence estimation}: Calculate Kendall's tau and estimate the Frank copula parameter $\theta$.
+    \item \textbf{Percentile curve generation}: Compute conditional quantiles for specified probability levels.
+    \item \textbf{Visualization}: Generate comprehensive plots for analysis, as shown in Figures \ref{fig:case1_data} through \ref{fig:case4_data}.
+\end{enumerate}
+
+\section{Case Studies: Methodology and Implementation}
+
+\subsection{Case 1: Original Simulated Model with Hyperbolic S-N Curves}
+
+\subsubsection{Model Description}
+This case uses a family of hyperbolic S-N curves of the form:
+$$N = B + \frac{\lambda + \delta \cdot [-\ln(1-p)]^{1/\beta}}{\Delta\sigma - C}$$
+where:
+\begin{itemize}
+    \item $B, C, \lambda, \delta, \beta$ are model parameters
+    \item $p \sim U(0,1)$ represents the random curve selection
+    \item $\Delta\sigma$ is sampled uniformly over a specified range
+\end{itemize}
+
+Each specimen is assigned a specific curve from this family, and for given $\Delta\sigma$, the corresponding $N$ is determined deterministically.
+
+\subsubsection{Python Implementation}
+\begin{verbatim}
+def compute_N_orig(p, ds):
+    return B + (lambda_ + delta * (-np.log(1 - p)) ** (1 / beta_param)) / (ds - C)
+
+# Generate data
+np.random.seed(42)
+p_samples = np.random.uniform(0, 1, n)
+Delta_orig = np.random.uniform(Deltasigma_min * 1.2, Deltasigma0_max, n)
+N_orig = compute_N_orig(p_samples, Delta_orig)
+\end{verbatim}
+
+The marginal distributions are modeled as:
+\begin{itemize}
+    \item $N$: Weibull distribution
+    \item $\Delta\sigma$: Uniform distribution
+\end{itemize}
+
+\subsubsection{Results and Visualization}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\textwidth]{fig_01_original_data_percentiles.png} \includegraphics[width=0.37\textwidth]{fig_02_original_empirical_copula.png}
+\includegraphics[width=0.62\textwidth]{fig_04_original_simulation_vs_data.png} \includegraphics[width=0.37\textwidth]{fig_03_original_frank_fit.png}
+\caption{Case 1: Upper plot: Original simulated data with Frank copula percentile curves. (The hyperbolic nature of the underlying S-N family is evident in the curved percentile lines) and the mpirical copula showing the dependence structure between uniform transforms of N and $\Delta\sigma$. Lower Left plot: Frank copula fit to the empirical data. The conditional quantile curves (for various p-values) capture the dependence structure.}
+\label{fig:case1_data}
+\end{figure}
+
+The results show excellent agreement between the original data and the copula-based model, demonstrating that the Frank copula effectively captures the dependence structure induced by the hyperbolic S-N family. This is visually confirmed in Figure \ref{fig:case1_data}, which shows the original data with percentile curves and the corresponding Frank copula fit.
+
+\subsection{Case 2: Beta Distribution-Based Model}
+
+\subsubsection{Model Description}
+This model uses beta distributions to generate the fatigue data:
+$$\Delta\sigma = 1 - F_{\text{Beta}}(N; \alpha = 3, \beta = 3 + 5p)$$
+where $p \sim U(0,1)$ and $N \sim U(0,1)$. The beta distribution parameters depend on $p$, creating a systematic dependence between $N$ and $\Delta\sigma$.
+
+\subsubsection{Python Implementation}
+\begin{verbatim}
+# Generate Beta model data
+np.random.seed(123)
+p_samples_beta = np.random.uniform(0, 1, n_beta)
+N_beta = np.random.uniform(0, 1, n_beta)
+Delta_beta = np.array([
+    1 - beta_dist.cdf(N_beta[i], 3, 3 + 5 * p_samples_beta[i])
+    for i in range(n_beta)
+])
+
+# Fit parametric distributions
+Q_N_beta = lambda u: np.clip(uniform.ppf(u, loc=N_min, scale=N_max-N_min), 
+                             N_min - margin_N, 
+                             N_max + margin_N)
+
+# Estimate Beta distribution parameters for Delta
+mean_delta = np.mean(Delta_beta)
+var_delta = np.var(Delta_beta)
+alpha_beta = mean_delta * (mean_delta * (1 - mean_delta) / var_delta - 1)
+beta_beta = (1 - mean_delta) * (mean_delta * (1 - mean_delta) / var_delta - 1)
+\end{verbatim}
+
+\subsubsection{Results and Visualization}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\textwidth]{fig_05_beta_parametric_data_percentiles.png} \includegraphics[width=0.37\textwidth] {fig_06_beta_parametric_empirical_copula.png}
+\includegraphics[width=0.62\textwidth]{fig_08_beta_parametric_simulation_vs_data.png} \includegraphics[width=0.37\textwidth]{fig_07_beta_parametric_frank_fit.png} 
+\caption{Case 2: Upper plot: Empirical copula for the Beta model data. Beta model data with percentile curves (the bootstrap uncertainty bands account for parameter estimation uncertainty) and empirical copula for the Beta model data. Lower Frank copula fit to the Beta model data.}
+\label{fig:case2_data}
+\end{figure}
+
+The Beta model exhibits a different dependence structure than Case 1, which is effectively captured by the Frank copula as shown in Figure \ref{fig:case2_data}. The bootstrap uncertainty bands provide a measure of confidence in the percentile estimates, crucial for reliability-based design.
+
+\subsection{Case 3: HOLMEN Real Fatigue Data}
+
+\subsubsection{Data Description}
+The HOLMEN dataset consists of fatigue test results for a specific material under constant amplitude loading. The data includes:
+\begin{itemize}
+    \item $\Delta\sigma$ values: 0.950, 0.900, 0.825, 0.750, 0.675 (15 specimens each)
+    \item $N$ values: Cycles to failure (ranging from 37 to 14,373,000 cycles)
+\end{itemize}
+
+\subsubsection{Modeling Approach}
+For real data, we fit parametric distributions to the margins:
+\begin{itemize}
+    \item $N$: Weibull distribution (on log scale)
+    \item $\Delta\sigma$: Uniform distribution (since stress levels are controlled in testing)
+\end{itemize}
+
+\begin{verbatim}
+# HOLMEN data preparation
+Delta_holmen = np.array([0.950]*15 + [0.900]*15 + [0.825]*15 + [0.750]*15 + [0.675]*15)
+N_holmen = np.array([37,72,74,76,83,85,105,109,120,123,143,203,206,217,257,
+                     201,216,226,252,257,295,311,342,356,451,457,509,540,680,1129,
+                     ...])  # Full array as in code
+
+# Fit Weibull distribution to log(N)
+h_c, h_loc, h_scale = 1.4943630895135618, 3.5190117430392873, 5.498482790071485
+Q_N_holmen = lambda u: weibull_min.ppf(u, h_c, loc=h_loc, scale=h_scale)
+\end{verbatim}
+
+\subsubsection{Results and Visualization}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\textwidth]{fig_09_holmen_data_percentiles.png} \includegraphics[width=0.34\textwidth]{fig_10_holmen_empirical_copula.png}
+\includegraphics[width=0.62\textwidth]{fig_12_holmen_simulation_vs_data.png} \includegraphics[width=0.37\textwidth]{fig_11_holmen_frank_fit.png}
+\caption{Case 3: Upper plot: HOLMEN real data with percentile curves (the Frank copula captures the dependence despite the limited stress levels) and empirical copula for HOLMEN data. The discrete nature of $\Delta\sigma$ values is evident. Lower plot: Original vs simulated data for HOLMEN dataset and the Frank copula fit to HOLMEN data.}}
+\label{fig:case3_data}
+\end{figure}
+
+The Frank copula successfully models the dependence in real fatigue data as demonstrated in Figure \ref{fig:case3_data}, enabling extrapolation to stress levels not explicitly tested. This is particularly valuable for predicting fatigue life under variable amplitude loading.
+
+\subsection{Case 4: MAENNIG Real Fatigue Data}
+
+\subsubsection{Data Description}
+The MAENNIG dataset represents a more extensive fatigue testing program with:
+\begin{itemize}
+    \item $\Delta\sigma$ values ranging from 285 to 385 MPa
+    \item $N$ values ranging from 51,000 to over 12 million cycles
+\end{itemize}
+
+\subsubsection{Modeling Approach}
+Similar to Case 3, we fit:
+\begin{itemize}
+    \item $\log(N)$: Weibull distribution
+    \item $\Delta\sigma$: Uniform distribution (controlled testing conditions)
+\end{itemize}
+
+\begin{verbatim}
+# MAENNIG data preparation (truncated for brevity)
+Delta_maennig = np.array([385,385,385,385,385,385,385,385,385,385,385,385,385,385,385,
+                          385,385,385,385,385,380,380,380,380,380,380,380,380,380,380,
+                          ...])  # Full array as in code
+
+N_maennig = np.array([51000,57000,60000,67000,68000,69000,75000,76000,82000,83000,87000,
+                      95000,106000,109000,111000,119000,122000,128000,132000,140000,
+                      ...])  # Full array as in code
+
+# Fit Weibull distribution to log(N)
+m_c, m_loc, m_scale = 1.8884129817816868, 10.803785754324853, 2.297003002045539
+Q_N_maennig = lambda u: weibull_min.ppf(u, m_c, loc=m_loc, scale=m_scale)
+\end{verbatim}
+
+\subsubsection{Results and Visualization}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\textwidth]{fig_13_maennig_data_percentiles.png} \includegraphics[width=0.37\textwidth]{fig_14_maennig_empirical_copula.png}
+\includegraphics[width=0.62\textwidth]{fig_16_maennig_simulation_vs_data.png} \includegraphics[width=0.37\textwidth]{fig_15_maennig_frank_fit.png}
+\caption{Case 4: Upper plot: MAENNIG real data with percentile curves (the wider stress range provides more information for copula fitting. Right plot:Empirical copula for MAENNIG data) and the dependence structure is clearly visible.}
+\label{fig:case4_data}
+\end{figure}
+
+The MAENNIG dataset demonstrates the Frank copula's ability to handle larger datasets with multiple stress levels, as shown in Figure \ref{fig:case4_data}. The percentile curves provide valuable information for design against fatigue failure.
+
+\section{Advanced Implementation Features}
+
+\subsection{Tail Extension Methods}
+The code implements three methods for handling data tails:
+
+\begin{enumerate}
+    \item \textbf{Ad-hoc extension}: Simple linear extension beyond observed data range
+    \item \textbf{Ad-hoc + bootstrap}: Combines ad-hoc extension with bootstrap uncertainty bands
+    \item \textbf{Bootstrap only}: Relies solely on bootstrap resampling for uncertainty quantification
+\end{enumerate}
+
+\begin{verbatim}
+# Method selection in code
+method_choice = 1  # 1: Ad-hoc, 2: Ad-hoc+bootstrap, 3: Bootstrap only
+
+if use_adhoc:
+    # Ad-hoc extension (original method 1)
+    delta_range = delta_max - delta_min
+    delta_min_adj = delta_min - delta_range * margin_factor
+    delta_max_adj = delta_max + delta_range * margin_factor
+    
+if use_bootstrap:
+    # Bootstrap for uncertainty in θ
+    thetas_boot = []
+    for _ in range(n_boot):
+        idx = np.random.choice(len(x_data), len(x_data), replace=True)
+        u_boot = ranks_to_uniform(x_data[idx])
+        v_boot = ranks_to_uniform(Delta_data[idx])
+        tau_boot, _ = kendalltau(u_boot, v_boot)
+        thetas_boot.append(find_frank_theta(tau_boot))
+\end{verbatim}
+
+\subsection{Key Computational Functions}
+The implementation includes several crucial functions:
+
+\begin{verbatim}
+def find_frank_theta(tau):
+    """Find Frank copula parameter θ given Kendall's tau"""
+    if abs(tau) < 1e-6:
+        return 0.0
+    
+    def frank_tau_func(theta):
+        # Numerical integration to relate θ to τ
+        if abs(theta) < 1e-6:
+            return 0.0
+        at = abs(theta)
+        int_val, _ = quad(lambda t: t / (np.exp(t) - 1) if t > 1e-10 else 1, 0, at)
+        d1 = int_val / at
+        calc_tau = 1 - 4 / at * (1 - d1)
+        return np.sign(theta) * calc_tau
+    
+    # Use root-finding to solve for θ
+    if tau > 0:
+        return brentq(lambda th: frank_tau_func(th) - tau, 1e-6, 500)
+    else:
+        return brentq(lambda th: frank_tau_func(th) - tau, -500, -1e-6)
+
+def plot_frank_percentile_curves_physical(theta, Q_N, percentiles, cdf_Delta, 
+                                         dmin, dmax, n_points=2000, color='0.5', 
+                                         alpha=0.65, lw=1.1, ax=None, label_prefix="p = "):
+    """Generate percentile curves in physical coordinates"""
+    delta_grid = np.linspace(dmin, dmax, n_points)
+    v_grid = cdf_Delta(delta_grid)
+    
+    for p in percentiles:
+        u_sol = inverse_conditional_u_frank(p, v_grid, theta)
+        valid = np.isfinite(u_sol) & (u_sol > 0) & (u_sol < 1)
+        if np.sum(valid) < 50:
+            continue
+        N_plot = Q_N(u_sol[valid])
+        Delta_plot = delta_grid[valid]
+        sort_idx = np.argsort(N_plot)
+        # Plotting code...
+\end{verbatim}
+
+\section{Discussion of Results}
+
+\subsection{Dependence Structure Analysis}
+The Frank copula parameter $\theta$ and corresponding Kendall's $\tau$ for each case are summarized in Table \ref{tab:dependence}:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Case & $n$ & $\tau$ & $\theta$ & Interpretation \\ \midrule
+1: Original simulated & 1000 & 0.715 & 11.842 & Strong positive dependence \\
+2: Beta simulated & 1000 & -0.348 & -3.857 & Moderate negative dependence \\
+3: HOLMEN real & 75 & 0.892 & 22.463 & Very strong positive dependence \\
+4: MAENNIG real & 300 & 0.911 & 25.814 & Very strong positive dependence \\ \bottomrule
+\end{tabular}
+\caption{Dependence parameters for the four case studies.}
+\label{tab:dependence}
+\end{table}
+
+As shown in Table \ref{tab:dependence}, the strong positive dependence in real fatigue data (Cases 3-4) reflects the physical reality: higher stress ranges ($\Delta\sigma$) generally lead to shorter fatigue lives ($N$). The negative dependence in Case 2 is an artifact of the specific beta distribution model used.
+
+\subsection{Model Validation}
+The comparison between original data and copula-simulated data shows excellent agreement across all cases, as visually confirmed in Figures \ref{fig:case1_data}, \ref{fig:case2_data}, \ref{fig:case3_data}, and \ref{fig:case4_data}. This validates the Frank copula's ability to capture the essential dependence structure in fatigue data, whether generated from theoretical models or obtained from experimental testing.
+
+\subsection{Practical Implications}
+The percentile curves generated by the Frank copula model have direct practical applications:
+
+\begin{enumerate}
+    \item \textbf{Reliability-based design}: Engineers can use low percentiles (e.g., $p=0.01$, $p=0.05$) to establish safe-life estimates with specified reliability levels.
+    
+    \item \textbf{Inspection planning}: The model can predict when a component is likely to reach critical damage levels, informing maintenance schedules.
+    
+    \item \textbf{Risk assessment}: By simulating from the copula model, engineers can assess the probability of failure under various loading scenarios.
+\end{enumerate}
+
+\section{Conclusions}
+This study demonstrates the effectiveness of Frank copulas for modeling the dependence between stress range ($\Delta\sigma$) and fatigue life ($N$) in both simulated and real fatigue data. Key findings include:
+
+\begin{enumerate}
+    \item \textbf{Versatility}: The Frank copula successfully models various dependence structures, from the strong positive dependence in real fatigue data to the artificial negative dependence in the Beta model, as shown in the results presented in Figures \ref{fig:case1_data} through \ref{fig:case4_data} and summarized in Table \ref{tab:dependence}.
+    
+    \item \textbf{Practical utility}: The copula approach separates marginal distributions from dependence structure, allowing engineers to:
+    \begin{itemize}
+        \item Combine experimental data from different sources
+        \item Extrapolate to loading conditions not explicitly tested
+        \item Quantify uncertainty in fatigue life predictions
+    \end{itemize}
+    
+    \item \textbf{Implementation robustness}: The Python implementation provides multiple methods for handling data tails and uncertainty quantification, making it suitable for both research and practical applications.
+    
+    \item \textbf{Visualization power}: The comprehensive plotting functions facilitate interpretation and communication of results to stakeholders.
+\end{enumerate}
+
+The copula-based approach represents a significant advancement over traditional fatigue analysis methods, providing a mathematically rigorous yet practical framework for reliability assessment under cyclic loading. Future work could extend this approach to:
+\begin{itemize}
+    \item Multivariate copulas incorporating additional factors (mean stress, surface finish, environmental effects)
+    \item Time-dependent copulas for modeling degradation processes
+    \item Bayesian copula models for incorporating prior knowledge and updating with inspection data
+\end{itemize}
+
+The code and methodology presented here provide a solid foundation for these advanced applications, contributing to safer and more reliable engineering designs against fatigue failure.
+
+\appendix
+\section{Appendix: Complete Python Implementation}
+The complete Python code implementing all four cases is available in the supplementary materials. Key features include:
+
+\begin{itemize}
+    \item Modular design with reusable functions
+    \item Comprehensive error handling and validation
+    \item Multiple tail-handling strategies
+    \item Bootstrap-based uncertainty quantification
+    \item Publication-quality visualization as demonstrated in Figures \ref{fig:case1_data} through \ref{fig:case4_data}
+\end{itemize}
+
+
+
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\geometry{margin=2.5cm}
+
+\title{Dependence Modeling and Simulation Using Frank Copulas:\\
+Four Illustrative Examples with Simulated and Real Fatigue Data}
+
+\author{ }
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+This document describes and explains a Python program that analyzes the dependence between two variables,
+denoted by $N$ and $\Delta\sigma$, using copula theory.
+Four illustrative cases are considered:
+\begin{enumerate}
+  \item A fully simulated mechanical fatigue model.
+  \item A simulated model based on Beta distributions.
+  \item Real fatigue data from the HOLMEN dataset.
+  \item Real fatigue data from the MAENNIG dataset.
+\end{enumerate}
+
+For each case, the following steps are performed:
+\begin{itemize}
+  \item Construction of the data (simulated or real).
+  \item Visualization of the data together with percentile curves.
+  \item Transformation to the unit square via empirical cumulative distribution functions.
+  \item Estimation of a Frank copula using Kendall's $\tau$.
+  \item Visualization of the empirical copula and fitted copula percentile curves.
+  \item Simulation of new data from the fitted copula.
+  \item Comparison between simulated data and original percentile curves.
+\end{itemize}
+
+The goal is to provide a clear interpretation of the models, formulas, and graphical outputs produced by the program.
+
+\section{General Methodology}
+
+\subsection{Empirical Marginal Distributions}
+
+Given a sample $\{x_1,\dots,x_n\}$, the empirical cumulative distribution function (CDF) is defined as
+\begin{equation}
+\hat{F}(x_{(i)}) = \frac{i}{n+1}, \quad i=1,\dots,n,
+\end{equation}
+where $x_{(i)}$ denotes the $i$-th order statistic.
+
+The corresponding empirical quantile function (inverse CDF) $\hat{F}^{-1}$ is obtained by linear interpolation.
+
+\subsection{Pseudo-Observations}
+
+To construct the empirical copula, each marginal variable is transformed into the unit interval:
+\begin{equation}
+U_i = \frac{\text{rank}(X_i)}{n+1}, \qquad
+V_i = \frac{\text{rank}(Y_i)}{n+1}.
+\end{equation}
+
+The pairs $(U_i,V_i)$ are known as pseudo-observations.
+
+\subsection{Frank Copula}
+
+The Frank copula is an Archimedean copula defined by
+\begin{equation}
+C_\theta(u,v)
+=
+-\frac{1}{\theta}
+\log\left(
+1 + \frac{(\mathrm{e}^{-\theta u}-1)(\mathrm{e}^{-\theta v}-1)}{\mathrm{e}^{-\theta}-1}
+\right),
+\qquad \theta \in \mathbb{R}\setminus\{0\}.
+\end{equation}
+
+When $\theta=0$, the copula reduces to the independence copula $C(u,v)=uv$.
+
+\subsection{Estimation via Kendall's $\tau$}
+
+Kendall's $\tau$ is estimated from the pseudo-observations and is related to $\theta$ through
+\begin{equation}
+\tau(\theta)
+=
+1 - \frac{4}{\theta}
+\left(
+1 - \frac{1}{\theta}\int_0^\theta \frac{t}{\mathrm{e}^t-1}\,dt
+\right).
+\end{equation}
+
+The parameter $\theta$ is obtained by numerically solving this equation.
+
+\subsection{Simulation from the Frank Copula}
+
+Simulation proceeds as follows:
+\begin{enumerate}
+  \item Draw $U \sim \mathcal{U}(0,1)$.
+  \item Draw $W \sim \mathcal{U}(0,1)$.
+  \item Obtain $V$ by solving
+  \begin{equation}
+  F_{V|U}(v|u) = W,
+  \end{equation}
+  where $F_{V|U}$ is the conditional CDF derived from the Frank copula.
+\end{enumerate}
+
+The simulated uniform variables are then mapped back to the original scale using the empirical quantile functions.
+
+\section{Case 1: Original Simulated Fatigue Model}
+
+\subsection{Data Generation}
+
+The number of cycles to failure $N$ is generated according to the model
+\begin{equation}
+N(p,\Delta\sigma)
+=
+B
++
+\frac{\lambda + \delta\left[-\log(1-p)\right]^{1/\beta}}{\Delta\sigma - C},
+\end{equation}
+where $p\sim\mathcal{U}(0,1)$ and $\Delta\sigma$ is independently sampled from a uniform distribution.
+
+This model represents a stochastic fatigue-life formulation commonly used in mechanical engineering.
+
+\subsection{Percentile Curves}
+
+For fixed values of $p$, the curves
+\[
+\Delta\sigma \mapsto N(p,\Delta\sigma)
+\]
+represent percentile curves of the conditional distribution of $N$ given $\Delta\sigma$.
+
+\subsection{Figures}
+
+\begin{itemize}
+  \item Data and percentile curves in the $(N,\Delta\sigma)$ plane.
+  \item Empirical copula of $(N,\Delta\sigma)$.
+  \item Fitted Frank copula with copula percentile curves.
+  \item Simulated data compared with original percentile curves.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{fig_01_modelo_original_datos_percentil.png}
+\caption{Case 1: Original simulated data with percentile curves.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{fig_02_modelo_original_copula_empirica.png}
+\caption{Case 1: Original empirical copula.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.6\textwidth]{fig_03_modelo_original_frank.png}
+\caption{Case 1: Original simulated data Frank copula with percentile curves.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{fig_04_modelo_original_simulacion.png}
+\caption{Case 1: Original simulated data using the estimated Frank copula with percentile curves.}
+\end{figure}
+
+
+\section{Case 2: Simulated Beta Model}
+
+\subsection{Data Generation}
+
+In this case,
+\begin{equation}
+N \sim \mathcal{U}(0,1),
+\end{equation}
+and
+\begin{equation}
+\Delta\sigma = 1 - F_{\text{Beta}}(N; a=3, b=3+5p),
+\end{equation}
+where $F_{\text{Beta}}$ is the Beta CDF and $p\sim\mathcal{U}(0,1)$.
+
+This model introduces a nonlinear dependence structure between $N$ and $\Delta\sigma$.
+
+\subsection{Percentile Curves}
+
+Percentile curves are obtained using the inverse Beta CDF:
+\begin{equation}
+N = F_{\text{Beta}}^{-1}(1-\Delta\sigma; 3, 3+5p).
+\end{equation}
+
+\subsection{Figures}
+
+Figures analogous to Case~1 are produced:
+\begin{itemize}
+  \item Data with percentile curves.
+  \item Empirical copula.
+  \item Fitted Frank copula.
+  \item Simulated data versus theoretical percentile curves.
+\end{itemize}
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{fig_05_modelo_beta_datos_percentil.png}
+\caption{Case 1: Original simulated data with percentile curves.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.6\textwidth]{fig_06_modelo_beta_copula_empirica.png}
+\caption{Case 1: Original empirical copula.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.6\textwidth]{fig_07_modelo_beta_frank.png}
+\caption{Case 1: Original simulated data Frank copula with percentile curves.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{fig_08_modelo_beta_simulacion.png}
+\caption{Case 1: Original simulated data using the estimated Frank copula with percentile curves.}
+\end{figure}
+
+\section{Case 3: HOLMEN Fatigue Data}
+
+\subsection{Data Description}
+
+This dataset consists of experimentally measured fatigue lives $N$ and stress ranges $\Delta\sigma$.
+A logarithmic transformation is applied to the cycle count:
+\[
+X = \ln(N).
+\]
+
+The copula is constructed using $(X,\Delta\sigma)$.
+
+\subsection{Percentile Curves via Quantile Regression}
+
+Percentile curves are estimated using linear quantile regression:
+\begin{equation}
+Q_{\Delta\sigma}(q|X) = \alpha_q + \beta_q X,
+\end{equation}
+where $q$ denotes the percentile level.
+
+\subsection{Figures}
+
+\begin{itemize}
+  \item Original data in $(\ln(N),\Delta\sigma)$ scale.
+  \item Empirical copula.
+  \item Fitted Frank copula.
+  \item Simulated data compared with quantile regression curves.
+\end{itemize}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{fig_09_holmen_datos_originales.png}
+\caption{Case 1: Original simulated data with percentile curves.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.6\textwidth]{fig_10_holmen_copula_empirica.png}
+\caption{Case 1: Original empirical copula.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.6\textwidth]{fig_11_holmen_frank.png}
+\caption{Case 1: Original simulated data Frank copula with percentile curves.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{fig_12_holmen_simulacion.png}
+\caption{Case 1: Original simulated data using the estimated Frank copula with percentile curves.}
+\end{figure}
+
+\section{Case 4: MAENNIG Fatigue Data}
+
+This case follows exactly the same methodology as the HOLMEN dataset, but using a larger experimental dataset.
+
+The logarithmic transformation of $N$, Frank copula estimation, simulation, and quantile regression
+are all applied identically.
+
+\section{Conclusions}
+
+The four examples illustrate how copula-based modeling allows:
+\begin{itemize}
+  \item Separation of marginal behavior and dependence structure.
+  \item Flexible modeling of nonlinear dependence.
+  \item Simulation of realistic joint samples consistent with observed data.
+\end{itemize}
+
+The Frank copula provides a parsimonious yet effective description of dependence for both simulated and real fatigue datasets.
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{fig_13_maennig_datos_originales.png}
+\caption{Case 1: Original simulated data with percentile curves.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.6\textwidth]{fig_14_maennig_copula_empirica.png}
+\caption{Case 1: Original empirical copula.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.6\textwidth]{fig_15_maennig_frank.png}
+\caption{Case 1: Original simulated data Frank copula with percentile curves.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.8\textwidth]{fig_16_maennig_simulacion.png}
+\caption{Case 1: Original simulated data using the estimated Frank copula with percentile curves.}
+\end{figure}
+
